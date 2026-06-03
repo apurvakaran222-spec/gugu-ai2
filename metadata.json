@@ -1,0 +1,6 @@
+{
+  "name": "GUGU",
+  "description": "A searchable library of Shayari, Pickup Lines, Rizz Chats, Poems, and Famous Poets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
