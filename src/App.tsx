@@ -19,7 +19,9 @@ import {
   ArrowLeft,
   History,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronDown,
+  HelpCircle
 } from 'lucide-react';
 import { Item } from './types';
 
@@ -159,6 +161,35 @@ export default function App() {
   // Surprise Me animation triggers
   const [surpriseMeAnimating, setSurpriseMeAnimating] = useState(false);
   const [surpriseMeItem, setSurpriseMeItem] = useState<Item | null>(null);
+
+  // FAQ Accordion index tracker
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  // Ref for the search results target
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [resultsHighlight, setResultsHighlight] = useState(false);
+
+  // Helper to scroll smoothly to search results
+  const performScrollToResults = () => {
+    setTimeout(() => {
+      if (resultsSectionRef.current) {
+        const yOffset = -100; // Offset by 100px so results header is beautifully framed
+        const element = resultsSectionRef.current;
+        const yCoord = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        
+        window.scrollTo({
+          top: yCoord,
+          behavior: 'smooth'
+        });
+
+        // Highlight the results section briefly with transition
+        setResultsHighlight(true);
+        setTimeout(() => {
+          setResultsHighlight(false);
+        }, 1500);
+      }
+    }, 150);
+  };
 
   // Save favorites to storage
   useEffect(() => {
@@ -662,7 +693,11 @@ export default function App() {
               <button
                 key={cat.val}
                 onClick={() => {
-                  setActiveCategory(isSelected ? null : (cat.val as any));
+                  const targetCategory = isSelected ? null : (cat.val as any);
+                  setActiveCategory(targetCategory);
+                  if (targetCategory) {
+                    performScrollToResults();
+                  }
                 }}
                 className={`px-5 py-3 rounded-full text-xs uppercase tracking-wider font-sans font-bold transition-all cursor-pointer ${
                   isSelected 
@@ -714,6 +749,7 @@ export default function App() {
                 if (e.key === 'Enter') {
                   addToHistory(searchQuery);
                   setSearchFocused(false);
+                  performScrollToResults();
                 }
               }}
               placeholder={ROTATING_PLACEHOLDERS[placeholderIndex]}
@@ -753,6 +789,7 @@ export default function App() {
                             const queryVal = sug.value.startsWith('#') ? sug.value.substring(1) : sug.value;
                             setSearchQuery(queryVal);
                             addToHistory(queryVal);
+                            performScrollToResults();
                           }
                           setSearchFocused(false);
                         }}
@@ -802,6 +839,7 @@ export default function App() {
                               setSearchQuery(queryText);
                               addToHistory(queryText);
                               setSearchFocused(false);
+                              performScrollToResults();
                             }}
                             className="text-xs bg-[#FAF5F0] hover:bg-[#F2E5D9] px-3 py-1.5 rounded-lg border border-[#4A2C2A]/10 text-gugu-text hover:text-gugu-accent transition-all font-serif cursor-pointer"
                           >
@@ -825,6 +863,7 @@ export default function App() {
                             setSearchQuery(popularName);
                             addToHistory(popularName);
                             setSearchFocused(false);
+                            performScrollToResults();
                           }}
                           className="text-[10px] bg-[#FFFBF7] hover:bg-[#FBEBE2] px-3 py-1.5 rounded-lg border border-[#F0D5C3] text-gugu-text hover:text-gugu-accent transition-all font-sans font-bold uppercase tracking-wider cursor-pointer"
                         >
@@ -852,6 +891,7 @@ export default function App() {
                 setActiveCollection(null);
                 addToHistory(chip);
                 triggerToast(`Searching for "${chip}"`);
+                performScrollToResults();
               }}
               className="text-[10px] font-sans uppercase tracking-wider font-bold bg-white/40 hover:bg-white px-3.5 py-1.5 rounded-lg border border-[#4A2C2A]/15 text-gugu-text hover:text-gugu-accent transition-all cursor-pointer shadow-3xs"
             >
@@ -872,12 +912,16 @@ export default function App() {
                 <button
                   key={mood.id}
                   onClick={() => {
-                    setActiveMood(isActive ? null : mood.name);
+                    const nextMood = isActive ? null : mood.name;
+                    setActiveMood(nextMood);
                     setActiveCollection(null); // Clear selected collection
                     setSearchQuery(''); // Clear search query
                     setActiveCategory(null); // Clear category filter
                     addToHistory(`Feeling: ${mood.name}`);
                     triggerToast(isActive ? "Reset mood wandering." : `Feeling ${mood.name} ${mood.emoji}`);
+                    if (nextMood) {
+                      performScrollToResults();
+                    }
                   }}
                   className={`flex items-center gap-1.5 px-4 py-2 border rounded-full text-xs font-sans font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     isActive
@@ -905,12 +949,16 @@ export default function App() {
                 <button
                   key={col.id}
                   onClick={() => {
-                    setActiveCollection(isActive ? null : col.id);
+                    const nextCol = isActive ? null : col.id;
+                    setActiveCollection(nextCol);
                     setActiveMood(null); // Clear active mood
                     setSearchQuery(''); // Clear search
                     setActiveCategory(null); // Clear category
                     addToHistory(`Shelf: ${col.name}`);
                     triggerToast(isActive ? "Left curated bookshelf." : `Opened "${col.name}" bookshelf`);
+                    if (nextCol) {
+                      performScrollToResults();
+                    }
                   }}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[10.5px] font-semibold tracking-wider font-sans uppercase transition-all duration-200 cursor-pointer ${
                     isActive
@@ -1329,7 +1377,14 @@ export default function App() {
 
         {/* RESULTS SECTION (Drawn when user is active in search or filter) */}
         {(searchQuery || activeCategory || activeMood || activeCollection) && (
-          <div className="animate-fade-in">
+          <div 
+            ref={resultsSectionRef}
+            className={`transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) rounded-3xl ${
+              resultsHighlight 
+                ? 'ring-4 ring-amber-100 bg-amber-50/40 p-4 sm:p-6 -mx-4 sm:-mx-6 shadow-xl shadow-amber-900/5 animate-scale-up' 
+                : 'bg-transparent ring-0'
+            }`}
+          >
             {/* Header / Sub-status bar */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 pb-3 border-b border-gugu-borders/30 gap-4">
               <div>
@@ -1482,6 +1537,188 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* PREMIUM EXPERIENCE: FREQUENTLY ASKED QUESTIONS SECTION */}
+        <section className="mt-20 max-w-4xl mx-auto border-t border-[#4A2C2A]/10 pt-16 pb-8">
+          <div className="text-center mb-10 select-none">
+            <span className="text-[10px] font-sans font-bold uppercase tracking-[0.3em] text-gugu-accent bg-[#FAF3EA] py-1 px-3.5 rounded-full border border-gugu-borders/40 inline-block mb-3.5 shadow-3xs">
+              ❓ FAQ DIRECTORY
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl font-extrabold text-[#4A2C2A] tracking-tight">
+              ❓ Frequently Asked Questions
+            </h2>
+            <p className="text-xs sm:text-sm text-gugu-muted mt-2 font-sans font-medium">
+              Everything you need to know about GUGU. Cozy words, solved simply.
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-4 px-2">
+            {[
+              {
+                question: "What is GUGU?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90">
+                    GUGU is a digital library of words where you can discover <em className="font-serif">shayari</em>, <em className="font-serif">pickup lines</em>, <em className="font-serif">rizz chats</em>, <em className="font-serif">poems</em>, and <em className="font-serif">famous poets</em>. It acts as an artistic corridor for those looking to explore romantic, humorous, or soulful sentiments.
+                  </p>
+                ),
+                icon: <HelpCircle className="w-4 h-4 text-gugu-accent shrink-0" />
+              },
+              {
+                question: "Is GUGU free to use?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90">
+                    Yes. GUGU is completely free to explore and enjoy. Feel free to browse, read in focus mode, download handcrafted typographic quote wallpapers, or save your favorite pieces to your local offline library vault.
+                  </p>
+                ),
+                icon: <Sparkles className="w-4 h-4 text-[#D8A7B1] shrink-0" />
+              },
+              {
+                question: "What kind of content can I find on GUGU?",
+                answer: (
+                  <div className="space-y-2.5">
+                    <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/95 font-medium">
+                      You can discover a deeply curated collection of expressions:
+                    </p>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-[12.5px] text-[#4A2C2A]/90 pl-1 font-serif italic">
+                      <li className="flex items-center gap-2 bg-[#FAF3EA]/40 px-3 py-1.5 rounded-lg border border-gugu-borders/30">
+                        <span className="text-base select-none">❤️</span>
+                        <span><strong>Shayari:</strong> Soulful Urdu dual-verses</span>
+                      </li>
+                      <li className="flex items-center gap-2 bg-[#FAF3EA]/40 px-3 py-1.5 rounded-lg border border-gugu-borders/30 block">
+                        <span className="text-base select-none">🔥</span>
+                        <span><strong>Pickup Lines:</strong> Playful modern openers</span>
+                      </li>
+                      <li className="flex items-center gap-2 bg-[#FAF3EA]/40 px-3 py-1.5 rounded-lg border border-gugu-borders/30">
+                        <span className="text-base select-none">💬</span>
+                        <span><strong>Rizz Chats:</strong> Witty banter flow logs</span>
+                      </li>
+                      <li className="flex items-center gap-2 bg-[#FAF3EA]/40 px-3 py-1.5 rounded-lg border border-gugu-borders/30">
+                        <span className="text-base select-none">📖</span>
+                        <span><strong>Poems:</strong> Elegant long-form verses</span>
+                      </li>
+                      <li className="flex items-center gap-2 sm:col-span-2 bg-[#FAF3EA]/40 px-3 py-1.5 rounded-lg border border-gugu-borders/30">
+                        <span className="text-base select-none">👑</span>
+                        <span><strong>Famous Poets:</strong> Historical & modern bards biography</span>
+                      </li>
+                    </ul>
+                  </div>
+                ),
+                icon: <BookOpen className="w-4 h-4 text-gugu-accent shrink-0" />
+              },
+              {
+                question: "Can I save my favorite content?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90">
+                    Yes. Use the <strong className="font-sans font-bold">Saved Vault</strong> feature to keep your favorite words in one place. Simply click the heart or bookmark button on any piece to instantly save it. You can access them anytime via the bottom drawer—even without reloading!
+                  </p>
+                ),
+                icon: <Heart className="w-4 h-4 text-gugu-accent shrink-0" />
+              },
+              {
+                question: "How does search work?",
+                answer: (
+                  <div className="space-y-2.5">
+                    <p className="text-xs sm:text-[13px] text-[#4A2C2A]/90 leading-relaxed">
+                      Simply search for keywords in the top bar. You can look up content by specifying queries such as:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Romantic Shayari", "Funny Pickup Lines", "Urdu Poetry", "First Date Ideas", "Heartbreak Quotes"].map((keyword) => (
+                        <button
+                          key={keyword}
+                          onClick={() => {
+                            setSearchQuery(keyword);
+                            setActiveCategory(null);
+                            setActiveMood(null);
+                            setActiveCollection(null);
+                            addToHistory(keyword);
+                            triggerToast(`Searching directory for "${keyword}"`);
+                            performScrollToResults();
+                          }}
+                          className="bg-white hover:bg-[#FAF3EA] border border-gugu-borders/60 text-gugu-text text-[10px] uppercase font-sans font-bold tracking-wider px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                        >
+                          {keyword}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ),
+                icon: <Search className="w-4 h-4 text-gugu-accent shrink-0" />
+              },
+              {
+                question: "Why is the website called GUGU?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90">
+                    Because every meaningful project starts with a name that matters to its creator. <strong className="font-sans font-bold text-gugu-accent">GUGU</strong> is an elegant space built for people searching for the perfect combination of words.
+                  </p>
+                ),
+                icon: <Quote className="w-4 h-4 text-[#D8A7B1] shrink-0" />
+              },
+              {
+                question: "Is new content added regularly?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90">
+                    Yes. The GUGU sanctuary is continuously expanding with fresh curated items, sparks of inspiration, and contemporary feelings. There is always a new poem, a witty chat, or a heart-melting shayari waiting for you.
+                  </p>
+                ),
+                icon: <Flame className="w-4 h-4 text-gugu-accent shrink-0" />
+              },
+              {
+                question: "Who created GUGU?",
+                answer: (
+                  <p className="text-xs sm:text-[13px] leading-relaxed text-[#4A2C2A]/90 font-medium">
+                    GUGU was crafted with deep thought and ❤️ by <strong className="font-serif italic font-bold text-gugu-accent">Apurv</strong>.
+                  </p>
+                ),
+                icon: <Feather className="w-4 h-4 text-gugu-accent shrink-0" />
+              }
+            ].map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className={`bg-white rounded-2xl border transition-all duration-300 shadow-3xs overflow-hidden ${
+                    isOpen 
+                      ? "border-[#EAC2A3] bg-gradient-to-tr from-white to-[#FFFDF9] shadow-2xs" 
+                      : "border-gugu-borders hover:border-[#E9DEC9] hover:bg-[#FFFDF9]/60"
+                  }`}
+                >
+                  {/* Summary/Button Panel */}
+                  <button
+                    onClick={() => {
+                      setOpenFaqIndex(isOpen ? null : idx);
+                      triggerToast(isOpen ? "Collapsed FAQ item" : `Viewing Question ${idx + 1}`);
+                    }}
+                    className="w-full flex items-center justify-between p-4 sm:p-5 text-left font-sans select-none cursor-pointer focus:outline-none"
+                  >
+                    <div className="flex items-center gap-3.5 pr-2">
+                      <div className={`p-2 rounded-xl transition-all ${isOpen ? "bg-[#FAF1E4]" : "bg-gugu-bg/30"}`}>
+                        {faq.icon}
+                      </div>
+                      <span className="font-serif text-[14.5px] sm:text-base font-bold text-[#4A2C2A] leading-tight">
+                        {faq.question}
+                      </span>
+                    </div>
+
+                    <div className={`p-1.5 rounded-full transition-all ${isOpen ? "bg-[#4A2C2A] text-white" : "bg-gugu-bg/50 text-[#7E6361]"}`}>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                    </div>
+                  </button>
+
+                  {/* Body/Answer Panel */}
+                  <div
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isOpen ? "max-h-[500px] opacity-100 memo-content" : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="px-5 pb-5 pt-1.5 pl-14 sm:pl-16 border-t border-[#FAF1E4] bg-white/40">
+                      {faq.answer}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
       </main>
 
@@ -1733,6 +1970,7 @@ export default function App() {
                           setActiveCategory(null);
                           setSelectedItem(null);
                           triggerToast(`Searching hashtag: #${tag}`);
+                          performScrollToResults();
                         }}
                         className="text-[10px] uppercase font-sans font-bold bg-gugu-bg text-gugu-text px-3 py-1.5 rounded-full border border-gugu-borders hover:bg-gugu-accent hover:text-gugu-card transition-colors select-none cursor-pointer"
                       >
